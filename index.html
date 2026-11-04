@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ถึงคนที่รัก">
+<meta name="theme-color" content="#ffd1dc">
+<title>ถึงคนที่รัก 💕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --pink:#ff4d79; --pink2:#ff8fab; --bg1:#ffe3ec; --bg2:#ffc2d4; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; margin:0; overflow:hidden; }
+  body {
+    font-family:'Prompt', system-ui, -apple-system, 'Sarabun', sans-serif;
+    background:linear-gradient(160deg, var(--bg1), var(--bg2));
+    color:#6b1d3a;
+    -webkit-user-select:none; user-select:none; touch-action:manipulation;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  #bg { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
+  .float {
+    position:absolute; bottom:-10vh; opacity:.55;
+    animation:rise linear forwards;
+  }
+  @keyframes rise { to { transform:translateY(-120vh) rotate(25deg); opacity:0; } }
+
+  .screen { position:relative; z-index:1; height:100%; display:flex; flex-direction:column;
+            align-items:center; justify-content:center; padding:20px; text-align:center; }
+  .hidden { display:none !important; }
+
+  .card {
+    width:min(92vw, 640px); padding:36px 28px 32px;
+    background:rgba(255,255,255,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    border-radius:32px; box-shadow:0 12px 40px rgba(255,77,121,.25);
+    animation:fadein .5s ease both;
+  }
+  @keyframes fadein { from { opacity:0; } to { opacity:1; } }
+
+  .dots { display:flex; gap:10px; justify-content:center; margin-bottom:18px; }
+  .dot { width:12px; height:12px; border-radius:50%; background:#f7b7c8; transition:.3s; }
+  .dot.on { background:var(--pink); transform:scale(1.25); }
+
+  .emoji { font-size:64px; line-height:1; margin-bottom:8px; animation:beat 1.2s ease-in-out infinite; }
+  @keyframes beat { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.15);} }
+  h1 { font-size:clamp(28px, 5.5vw, 44px); margin:8px 0 6px; font-weight:800; }
+  .hint { min-height:28px; font-size:18px; color:#b8456b; margin:0 0 18px; }
+
+  .btns { display:flex; gap:22px; justify-content:center; align-items:center; flex-wrap:wrap; min-height:80px; }
+  .btn {
+    font-family:inherit; font-size:clamp(20px, 3.4vw, 26px); font-weight:600;
+    min-width:140px; min-height:60px; padding:12px 30px; border-radius:999px; border:none; cursor:pointer;
+    -webkit-user-select:none; user-select:none; touch-action:manipulation;
+  }
+  .btn.yes { background:linear-gradient(135deg, var(--pink), var(--pink2)); color:#fff;
+             box-shadow:0 8px 20px rgba(255,77,121,.45); transition:transform .25s; }
+  .btn.no  { background:#fff; color:#8a5a6b; border:2px solid #f0b8c8; transition:left .25s ease, top .25s ease; }
+  .btn.no.floating { position:fixed; z-index:50; }
+
+  /* หน้าสุดท้าย */
+  #stage { position:relative; }
+  .letter {
+    position:absolute; font-weight:800; transform:translate(-50%,-50%);
+    text-shadow:0 2px 6px rgba(255,255,255,.8);
+    animation:pop .6s cubic-bezier(.2,1.6,.4,1) both;
+  }
+  .noanim .letter { animation:none; }
+  @keyframes pop {
+    0%   { opacity:0; transform:translate(-50%,-50%) scale(0); }
+    100% { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  }
+  #stage.beating { animation:heartbeat 1.4s ease-in-out infinite; }
+  @keyframes heartbeat { 0%,100%{ transform:scale(1);} 15%{ transform:scale(1.05);} 30%{ transform:scale(1);} 45%{ transform:scale(1.04);} }
+  #finalText { font-size:clamp(20px, 3.4vw, 30px); font-weight:600; margin:14px 0 8px; opacity:0; transition:opacity 1s; }
+  #finalText.show { opacity:1; }
+  #again { margin-top:6px; background:transparent; border:2px solid var(--pink); color:var(--pink); min-height:48px; min-width:120px; font-size:18px; opacity:0; transition:opacity 1s; }
+  #again.show { opacity:1; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+
+<div id="quiz" class="screen">
+  <div class="card">
+    <div class="dots" id="dots"></div>
+    <div class="emoji" id="emoji">💗</div>
+    <h1 id="question"></h1>
+    <p class="hint" id="hint"></p>
+    <div class="btns" id="btns"></div>
+  </div>
+</div>
+
+<div id="finale" class="screen hidden">
+  <div id="stage"></div>
+  <div id="finalText"></div>
+  <button class="btn" id="again">เล่นอีกครั้ง</button>
+</div>
+
+<script>
+const CONFIG = {
+  questions: [
+    { q: "รักเค้ามั้ย?",      yes: "รัก 💕",      no: "ไม่รัก",      emoji: "💗" },
+    { q: "คิดถึงเค้ามั้ย?",   yes: "คิดถึง 🥺",    no: "ไม่คิดถึง",   emoji: "🥰" },
+    { q: "อยากจุ๊บเค้ามั้ย?", yes: "อยาก 😘",     no: "ไม่อยาก",     emoji: "😚" }
+  ],
+  dodgeHints: ["กดไม่ได้หรอกนะ 😝", "จับให้ได้สิแยมมี่~", "ตอบใหม่น้าา 🥺", "หนีแบ้วว 🏃‍♂️💨", "ไม่ยอมให้กดหรอก 😤"],
+  heartWord: "ILOVEYOU",             
+  finalText: "รักที่สุดเลยนะ 💖"       
+};
+
+const $ = id => document.getElementById(id);
+const quiz = $('quiz'), finale = $('finale'), btns = $('btns'), hint = $('hint');
+let idx = 0, noBtn = null, yesBtn = null, placeholder = null, floating = false, yesScale = 1;
+
+// Function หัวใจลอย
+function spawnFloat() {
+  const el = document.createElement('div');
+  el.className = 'float';
+  el.textContent = ['💗','💖','💕','❤️','💘'][Math.floor(Math.random()*5)];
+  el.style.left = Math.random()*100 + 'vw';
+  el.style.fontSize = (18 + Math.random()*30) + 'px';
+  el.style.animationDuration = (7 + Math.random()*7) + 's';
+  $('bg').appendChild(el);
+  setTimeout(() => el.remove(), 15000);
+}
+setInterval(spawnFloat, 700);
+
+// Function คำถาม
+function renderDots() {
+  $('dots').innerHTML = CONFIG.questions.map((_, i) => `<div class="dot ${i <= idx ? 'on' : ''}"></div>`).join('');
+}
+
+function clearButtons() {
+  if (noBtn) noBtn.remove();
+  btns.innerHTML = '';
+  noBtn = yesBtn = placeholder = null;
+  floating = false;
+  yesScale = 1;
+}
+
+function showQuestion() {
+  const item = CONFIG.questions[idx];
+  clearButtons();
+  renderDots();
+  $('question').textContent = item.q;
+  $('emoji').textContent = item.emoji;
+  hint.textContent = '';
+
+  yesBtn = document.createElement('button');
+  yesBtn.className = 'btn yes';
+  yesBtn.textContent = item.yes;
+  yesBtn.addEventListener('click', next);
+
+  noBtn = document.createElement('button');
+  noBtn.className = 'btn no';
+  noBtn.textContent = item.no;
+
+  const run = e => { e.preventDefault(); e.stopPropagation(); dodge(); };
+  noBtn.addEventListener('pointerenter', run);
+  noBtn.addEventListener('pointerdown', run);
+  noBtn.addEventListener('touchstart', run, { passive: false });
+  noBtn.addEventListener('mousedown', run);
+  noBtn.addEventListener('click', run);
+
+  btns.append(yesBtn, noBtn);
+}
+
+function overlap(x, y, w, h, r, pad = 16) {
+  return x < r.right + pad && x + w > r.left - pad && y < r.bottom + pad && y + h > r.top - pad;
+}
+
+function dodge() {
+  const r = noBtn.getBoundingClientRect();
+  const w = r.width, h = r.height, m = 12;
+
+  if (!floating) {
+    placeholder = document.createElement('span');
+    placeholder.style.cssText = `display:inline-block;width:${w}px;height:${h}px;visibility:hidden`;
+    btns.insertBefore(placeholder, noBtn);
+    document.body.appendChild(noBtn);
+    noBtn.classList.add('floating');
+    floating = true;
+  }
+
+  const yr = yesBtn.getBoundingClientRect();
+  const maxX = Math.max(m, innerWidth - w - m), maxY = Math.max(m, innerHeight - h - m);
+  let x, y, tries = 0;
+  do {
+    x = m + Math.random() * (maxX - m);
+    y = m + Math.random() * (maxY - m);
+    tries++;
+  } while (tries < 50 && overlap(x, y, w, h, yr));
+
+  noBtn.style.left = x + 'px';
+  noBtn.style.top = y + 'px';
+
+  hint.textContent = CONFIG.dodgeHints[Math.floor(Math.random() * CONFIG.dodgeHints.length)];
+  yesScale = Math.min(yesScale + 0.1, 1.6);          // ปุ่ม "ใช่" ใหญ่ขึ้นทุกครั้งที่หนี
+  yesBtn.style.transform = `scale(${yesScale})`;
+}
+
+function next() {
+  idx++;
+  if (idx >= CONFIG.questions.length) { showFinale(); return; }
+  showQuestion();
+}
+
+function heartPoint(t) {
+  return {
+    x: 16 * Math.pow(Math.sin(t), 3),
+    y: 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)
+  };
+}
+
+function samplePath(scale, count) {
+  const N = 720, pts = [], cum = [0];
+  for (let i = 0; i <= N; i++) {
+    const p = heartPoint((i / N) * Math.PI * 2);
+    pts.push({ x: p.x * scale, y: p.y * scale });
+    if (i > 0) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  }
+  const total = cum[N], out = [];
+  let j = 0;
+  for (let k = 0; k < count; k++) {
+    const target = (k / count) * total;
+    while (cum[j] < target) j++;
+    out.push(pts[j]);
+  }
+  return out;
+}
+
+function buildHeart(animate) {
+  const stage = $('stage');
+  stage.innerHTML = '';
+  stage.classList.toggle('noanim', !animate);
+  const S = Math.min(innerWidth * 0.92, innerHeight * 0.66, 760);
+  stage.style.width = stage.style.height = S + 'px';
+  const k = S / 38, cx = S / 2, cy = S / 2;
+  const fs = S / 17;
+
+  const layers = [{ s: 1, n: 38 }, { s: 0.66, n: 24 }, { s: 0.34, n: 11 }];
+  let li = 0, order = 0;
+  layers.forEach(layer => {
+    samplePath(layer.s, layer.n).forEach(p => {
+      const el = document.createElement('span');
+      el.className = 'letter';
+      el.textContent = CONFIG.heartWord[li % CONFIG.heartWord.length];
+      el.style.left = (cx + p.x * k) + 'px';
+      el.style.top = (cy - (p.y + 2.5 * layer.s) * k) + 'px';
+      el.style.fontSize = (fs * (0.75 + 0.25 * layer.s)) + 'px';
+      el.style.color = `hsl(${335 + Math.random() * 25}, 85%, ${48 + Math.random() * 14}%)`;
+      el.style.animationDelay = (order * 55) + 'ms';
+      stage.appendChild(el);
+      li++; order++;
+    });
+  });
+  return order;
+}
+
+function showFinale() {
+  quiz.classList.add('hidden');
+  finale.classList.remove('hidden');
+  $('finalText').classList.remove('show');
+  $('again').classList.remove('show');
+  $('stage').classList.remove('beating');
+  const total = buildHeart(true);
+  for (let i = 0; i < 40; i++) setTimeout(spawnFloat, i * 80);
+  setTimeout(() => {
+    $('stage').classList.add('beating');
+    $('finalText').textContent = CONFIG.finalText;
+    $('finalText').classList.add('show');
+    $('again').classList.add('show');
+  }, total * 55 + 700);
+}
+
+addEventListener('resize', () => {
+  if (!finale.classList.contains('hidden')) buildHeart(false);
+});
+
+$('again').addEventListener('click', () => {
+  finale.classList.add('hidden');
+  quiz.classList.remove('hidden');
+  idx = 0;
+  showQuestion();
+});
+
+showQuestion();
+</script>
+</body>
+</html>
